@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+
+
+XPROXY_CACHE="$HOME/.xproxy_cache"
+
+
+if [ -f "$XPROXY_CACHE" ]; then
+	source "$XPROXY_CACHE"
+fi
+
+function _xproxy_set() {
+
+	local host="127.0.0.1"
+	local port="10808"
+
+	# set proxy settings via environmental variables for current shell instance
+	export http_proxy="socks5h://$host:$port"
+	export https_proxy="socks5h://$host:$port"
+
+	# set proxy settings for future shell instances
+	# WARNING: other current shell instances won't follow these proxy settings
+	cat <<- EOF > $XPROXY_CACHE
+	# This file is automatically created, DO NOT EDIT!
+	export http_proxy="socks5h://$host:$port"
+	export https_proxy="socks5h://$host:$port"
+	EOF
+
+
+	# set proxy setting for gnome compatibles
+	gsettings set org.gnome.system.proxy mode 'manual'
+	gsettings set org.gnome.system.proxy.socks host "${host}"
+	gsettings set org.gnome.system.proxy.socks port "${port}"
+
+	# set proxy settings for kde compatibles
+	kwriteconfig6 --file kioslaverc --group "Proxy Settings" --key ProxyType 1
+	kwriteconfig6 --file kioslaverc --group "Proxy Settings" \
+		      --key socksProxy "socks://"${host}":"${port}""
+	# apply changes by restarting kde's network settings
+	dbus-send --type=signal /KIO/Scheduler org.kde.KIO.Scheduler.reparseSlaveConfiguration string:""
+
+
+}
+
+function _xproxy_unset() {
+
+	# unset proxy settings via environment variables for current shell instance
+	unset http_proxy
+        unset https_proxy
+
+	# unset proxy settings for future shell instances
+	# WARNING: other current shell instances will continue to use the previous proxy settings
+	if [ -f "$XPROXY_CACHE" ]; then
+		rm -f "$XPROXY_CACHE"
+	fi
+
+	# unset proxy setting for gnome compatibles
+	gsettings set org.gnome.system.proxy mode 'none'
+
+	# set proxy settings for kde compatibles
+	kwriteconfig6 --file kioslaverc --group "Proxy Settings" --key ProxyType 0
+
+	# apply changes by restarting kde's network settings
+	dbus-send --type=signal /KIO/Scheduler org.kde.KIO.Scheduler.reparseSlaveConfiguration string:""
+
+
+}
+
+function xproxy() {
+
+	local cmd=${1:-set};
+
+	case "$cmd" in
+	"set")
+		_xproxy_set 
+	;;
+	"unset")
+		_xproxy_unset
+	;;
+	*)
+		echo "invalid command"
+	;;
+	esac
+}

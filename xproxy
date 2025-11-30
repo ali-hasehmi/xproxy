@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+
+
+_XPROXY_CACHE="$HOME/.xproxy_cache"
+
+_XPROXY_PROTOS=("http" "https" "ftp" "rsync" "all")
+
+_XPROXY_NO_PROXY="localhost,127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,*.local"
+
+if [ -f "$_XPROXY_CACHE" ]; then
+	source "$_XPROXY_CACHE"
+fi
+
+function _xproxy_set() {
+
+	local host="127.0.0.1"
+	local port="10808"
+
+	local proxy_url="socks5h://$host:$port"
+
+	# set proxy settings via environmental variables for current shell instance
+	for proto in "${_XPROXY_PROTOS[@]}"; do
+		export "${proto}_proxy"="$proxy_url"
+		export "${proto^^}_PROXY"="$proxy_url"
+	done
+	export no_proxy="${_XPROXY_NO_PROXY}"
+	export NO_PROXY="${_XPROXY_NO_PROxy}"
+
+
+	# set proxy settings for future shell instances
+	# WARNING: other current shell instances won't follow these proxy settings
+	echo "# This file is automatically created by xproxy, DO NOT EDIT!" > "$_XPROXY_CACHE"
+	for proto in "${_XPROXY_PROTOS[@]}"; do
+		echo "export ${proto}_proxy=\"$proxy_url\"" >> "$_XPROXY_CACHE"
+		echo "export ${proto^^}_PROXY=\"$proxy_url\"" >> "$_XPROXY_CACHE"
+	done
+	echo "export no_proxy=\"$_XPROXY_NO_PROXY\"" >> "$_XPROXY_CACHE"
+	echo "export NO_PROXY=\"$_XPROXY_NO_PROXY\"" >> "$_XPROXY_CACHE"
+
+
+	# set proxy setting for gnome compatibles
+	gsettings set org.gnome.system.proxy mode 'manual'
+	gsettings set org.gnome.system.proxy.socks host "${host}"
+	gsettings set org.gnome.system.proxy.socks port "${port}"
+
+	# set proxy settings for kde compatibles
+	kwriteconfig6 --file kioslaverc --group "Proxy Settings" --key ProxyType 1
+	kwriteconfig6 --file kioslaverc --group "Proxy Settings" \
+		      --key socksProxy "socks://"${host}":"${port}""
+	# apply changes by restarting kde's network settings
+	dbus-send --type=signal /KIO/Scheduler org.kde.KIO.Scheduler.reparseSlaveConfiguration string:""
+
+
+}
+
+function _xproxy_unset() {
+
+	# unset proxy settings via environment variables for current shell instance
+	unset http_proxy
+        unset https_proxy
+
+	# unset proxy settings for future shell instances
+	# WARNING: other current shell instances will continue to use the previous proxy settings
+	if [ -f "$_XPROXY_CACHE" ]; then
+		rm -f "$_XPROXY_CACHE"
+	fi
+
+	# unset proxy setting for gnome compatibles
+	gsettings set org.gnome.system.proxy mode 'none'
+
+	# set proxy settings for kde compatibles
+	kwriteconfig6 --file kioslaverc --group "Proxy Settings" --key ProxyType 0
+
+	# apply changes by restarting kde's network settings
+	dbus-send --type=signal /KIO/Scheduler org.kde.KIO.Scheduler.reparseSlaveConfiguration string:""
+
+
+}
+
+
+function xproxy() {
+
+	local cmd=${1:-set};
+
+	case "$cmd" in
+	"set")
+		_xproxy_set 
+	;;
+	"unset")
+		_xproxy_unset
+	;;
+	*)
+		echo "invalid command"
+	;;
+	esac
+}

@@ -56,8 +56,13 @@ function _xproxy_set() {
 function _xproxy_unset() {
 
 	# unset proxy settings via environment variables for current shell instance
-	unset http_proxy
-        unset https_proxy
+	for proto in "${_XPROXY_PROTOS[@]}"; do
+		unset "${proto}_proxy"
+		unset "${proto^^}_PROXY"
+	done
+	unset no_proxy
+	unset NO_PROXY
+
 
 	# unset proxy settings for future shell instances
 	# WARNING: other current shell instances will continue to use the previous proxy settings
@@ -77,10 +82,57 @@ function _xproxy_unset() {
 
 }
 
+function _xproxy_status() {
+
+	# Initialize color variables
+	local RED=$(tput setaf 1)
+	local RESET=$(tput sgr0)
+
+	# check proxy environment variable settings
+	for proto in ${_XPROXY_PROTOS[@]}; do
+		local proto_proxy="${proto}_proxy"
+		local PROTO_PROXY="${proto^^}_PROXY"
+
+		if [ -n "${!proto_proxy}" ]; then 
+			echo "${proto_proxy} = ${!proto_proxy}"
+		else 
+			echo "${RED}${proto_proxy} is NOT set${RESET}"
+		fi
+
+		if [ -n "${!PROTO_PROXY}" ]; then
+			echo "${PROTO_PROXY} = ${!PROTO_PROXY}"
+		else 
+			echo "${RED}${PROTO_PROXY} is NOT set${RESET}"
+		fi
+	done
+
+	# check existance of cache file for future shells 
+	if [ -f "$_XPROXY_CACHE" ]; then
+		echo "cache file exists"
+	else 
+		echo "${RED}cache file does NOT exist${RESET}"
+	fi
+
+	# check gnome proxy settings
+	if [ $(gsettings get org.gnome.system.proxy mode) = "'manual'" ]; then
+		echo "gnome setting is set"
+	else 
+		echo "${RED}gnome setting is NOT set${RESET}"
+	fi
+
+
+	# check kde proxy settings
+	if [ $(kreadconfig6 --file kioslaverc --group "Proxy Settings" --key ProxyType) = "1" ]; then
+		echo "KDE setting is set"
+	else 
+		echo "${RED}KDE setting is NOT set${RESET}"
+	fi
+
+}
 
 function xproxy() {
 
-	local cmd=${1:-set};
+	local cmd=${1:-status};
 
 	case "$cmd" in
 	"set")
@@ -88,6 +140,9 @@ function xproxy() {
 	;;
 	"unset")
 		_xproxy_unset
+	;;
+	"status")
+		_xproxy_status
 	;;
 	*)
 		echo "invalid command"

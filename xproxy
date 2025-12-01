@@ -13,10 +13,38 @@ fi
 
 function _xproxy_set() {
 
-	local host="127.0.0.1"
-	local port="10808"
+	local proxy_profile="$1"
 
-	local proxy_url="socks5h://$host:$port"
+	# proxy variables inside the profile file
+	local SOCKS_ENABLE  
+	local SOCKS_HOST="127.0.0.1" 
+	local SOCKS_PORT="10808"  
+	local SOCKS_VERSION="socks5h"
+	local HTTP_ENABLE 
+	local HTTP_HOST="127.0.0.1"
+	local HTTP_PORT="10808" 
+
+	if [ ! -f "$proxy_profile" ]; then
+		echo "$proxy_profile not found!" >& 2
+		return 1;
+	fi
+	source "$proxy_profile"
+
+	echo "loading profile from $proxy_profile"
+	
+	local proxy_url="" 
+	if [ "$SOCKS_ENABLE" = "true" ]; then
+		proxy_url="$SOCKS_VERSION://$SOCKS_HOST:$SOCKS_PORT"
+	fi 	
+
+	if [ "$HTTP_ENABLE" = "true" ]; then
+		proxy_url="http://$HTTP_HOST:$HTTP_PORT"
+	fi	
+
+	if [ -z "$proxy_url" ]; then
+		echo "socks and http are both disabled, nothing to do..."
+		return 0
+	fi
 
 	# set proxy settings via environmental variables for current shell instance
 	for proto in "${_XPROXY_PROTOS[@]}"; do
@@ -25,6 +53,8 @@ function _xproxy_set() {
 	done
 	export no_proxy="${_XPROXY_NO_PROXY}"
 	export NO_PROXY="${_XPROXY_NO_PROxy}"
+
+	echo "env variables set to $proxy_url"
 
 
 	# set proxy settings for future shell instances
@@ -37,11 +67,39 @@ function _xproxy_set() {
 	echo "export no_proxy=\"$_XPROXY_NO_PROXY\"" >> "$_XPROXY_CACHE"
 	echo "export NO_PROXY=\"$_XPROXY_NO_PROXY\"" >> "$_XPROXY_CACHE"
 
+	echo "cache file created for future shells"
+
 
 	# set proxy setting for gnome compatibles
 	gsettings set org.gnome.system.proxy mode 'manual'
-	gsettings set org.gnome.system.proxy.socks host "${host}"
-	gsettings set org.gnome.system.proxy.socks port "${port}"
+	# set socks setting if enabled
+	if [ "$SOCKS_ENABLE" = "true" ]; then
+		gsettings set org.gnome.system.proxy.socks host "$SOCKS_HOST"
+		gsettings set org.gnome.system.proxy.socks port "$SOCKS_PORT"
+	else 
+		# clean the socks settings to prevent any intervention
+		gsettings set org.gnome.system.proxy.socks host ""
+		gsettings set org.gnome.system.proxy.socks port 0
+	fi
+
+	local protos=("http" "https" "ftp")
+	# set other protocols to http proxy if enabled
+	if [ "$HTTP_ENABLE" = "true" ]; then
+		for proto in "${protos[@]}"; do
+			gsettings set org.gnome.system.proxy."$proto" host "$HTTP_HOST"
+			gsettings set org.gnome.system.proxy."$proto" port "$HTTP_PORT"
+		done
+	else
+		# clean the other settings to prevent any intervention
+		for proto in "${protos[@]}"; do
+			gsettings set org.gnome.system.proxy."$proto" host ""
+			gsettings set org.gnome.system.proxy."$proto" port 0
+		done
+	fi
+	gsettings set org.gnome.system.proxy ignore-hosts "['$_XPROXY_NO_PROXY']"
+
+	echo "gnome setting is set"
+
 
 	# set proxy settings for kde compatibles
 	kwriteconfig6 --file kioslaverc --group "Proxy Settings" --key ProxyType 1
@@ -50,6 +108,7 @@ function _xproxy_set() {
 	# apply changes by restarting kde's network settings
 	dbus-send --type=signal /KIO/Scheduler org.kde.KIO.Scheduler.reparseSlaveConfiguration string:""
 
+	echo "kde setting is set"
 
 }
 
@@ -136,7 +195,8 @@ function xproxy() {
 
 	case "$cmd" in
 	"set")
-		_xproxy_set 
+		local profile_file=${2:-"$HOME/.xproxy_profile"}
+		_xproxy_set $profile_file
 	;;
 	"unset")
 		_xproxy_unset

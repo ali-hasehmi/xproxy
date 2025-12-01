@@ -1,0 +1,24 @@
+# When both protocols are enabled, http has higher priority
+# SOCKS Proxy Settings
+## [REQUIRED]
+SOCKS_ENABLE=true     
+
+## [OPTIONAL] Default is 127.0.0.1
+SOCKS_HOST="10.0.0.5" 
+
+## [OPTIONAL] Default is 10808
+SOCKS_PORT="1080"     
+
+## [OPTIONAL] Default is socks5h
+SOCKS_VERSION="socks5h"
+
+
+# HTTP Proxy Settings
+## [REQUIRED] 
+HTTP_ENABLE=true
+
+## [OPTIONAL] Default is 127.0.0.1
+HTTP_HOST="192.168.1.50"
+
+## [OPTIONAL] Default is 10808
+HTTP_PORT="3128" 

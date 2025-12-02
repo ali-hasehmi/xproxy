@@ -103,8 +103,29 @@ function _xproxy_set() {
 
 	# set proxy settings for kde compatibles
 	kwriteconfig6 --file kioslaverc --group "Proxy Settings" --key ProxyType 1
-	kwriteconfig6 --file kioslaverc --group "Proxy Settings" \
-		      --key socksProxy "socks://"${host}":"${port}""
+	# set socks setting if enabled
+	if [ "$SOCKS_ENABLE" = "true" ]; then
+		kwriteconfig6 --file kioslaverc --group "Proxy Settings" \
+			      --key socksProxy "$SOCKS_VERSION://"$SOCKS_HOST":"$SOCKS_PORT""
+	else 
+		kwriteconfig6 --file kioslaverc --group "Proxy Settings" --key socksProxy ""
+
+	fi
+	if [ "$HTTP_ENABLE" = "true" ]; then
+		for proto in "${protos[@]}"; do
+			kwriteconfig6 --file kioslaverc --group "Proxy Settings" \
+				      --key "$proto"Proxy "http://"$HTTP_HOST":"$HTTP_PORT""
+		done
+	else
+		# clean the other settings to prevent any intervention
+		for proto in "${protos[@]}"; do
+			kwriteconfig6 --file kioslaverc --group "Proxy Settings" --key "$proto"Proxy ""
+		done
+	fi
+
+	# Set ignored hosts
+        kwriteconfig6 --file kioslaverc --group "Proxy Settings" --key NoProxyFor "$_XPROXY_NO_PROXY"
+
 	# apply changes by restarting kde's network settings
 	dbus-send --type=signal /KIO/Scheduler org.kde.KIO.Scheduler.reparseSlaveConfiguration string:""
 

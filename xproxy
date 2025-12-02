@@ -30,7 +30,7 @@ function _xproxy_set() {
 	fi
 	source "$proxy_profile"
 
-	echo "loading profile from $proxy_profile"
+	echo "profile loaded from $proxy_profile"
 	
 	local proxy_url="" 
 	if [ "$SOCKS_ENABLE" = "true" ]; then
@@ -54,7 +54,7 @@ function _xproxy_set() {
 	export no_proxy="${_XPROXY_NO_PROXY}"
 	export NO_PROXY="${_XPROXY_NO_PROxy}"
 
-	echo "env variables set to $proxy_url"
+	echo "[ENV] variables are set to $proxy_url"
 
 
 	# set proxy settings for future shell instances
@@ -67,71 +67,102 @@ function _xproxy_set() {
 	echo "export no_proxy=\"$_XPROXY_NO_PROXY\"" >> "$_XPROXY_CACHE"
 	echo "export NO_PROXY=\"$_XPROXY_NO_PROXY\"" >> "$_XPROXY_CACHE"
 
-	echo "cache file created for future shells"
+	echo "[CACHE] "$_XPROXY_CACHE" created for future shells"
 
 
 	# set proxy setting for gnome compatibles
 	gsettings set org.gnome.system.proxy mode 'manual'
+	echo "[GNOME] proxy mode set to 'manual'"
 	# set socks setting if enabled
 	if [ "$SOCKS_ENABLE" = "true" ]; then
 		gsettings set org.gnome.system.proxy.socks host "$SOCKS_HOST"
+		echo "[GNOME] socks host set to "$SOCKS_HOST""
+
 		gsettings set org.gnome.system.proxy.socks port "$SOCKS_PORT"
+		echo "[GNOME] socks port set to "$SOCKS_PORT""
 	else 
 		# clean the socks settings to prevent any intervention
 		gsettings set org.gnome.system.proxy.socks host ""
+		echo "[GNOME] socks host cleared" 
 		gsettings set org.gnome.system.proxy.socks port 0
+		echo "[GNOME] socks port cleared"
 	fi
 
 	local protos=("http" "https" "ftp")
 	# set other protocols to http proxy if enabled
 	if [ "$HTTP_ENABLE" = "true" ]; then
+
 		for proto in "${protos[@]}"; do
+
 			gsettings set org.gnome.system.proxy."$proto" host "$HTTP_HOST"
+			echo "[GNOME] "$proto" host set to "$HTTP_HOST""
+
 			gsettings set org.gnome.system.proxy."$proto" port "$HTTP_PORT"
+			echo "[GNOME] "$proto" port set to "$HTTP_PORT""
+
 		done
 	else
 		# clean the other settings to prevent any intervention
 		for proto in "${protos[@]}"; do
+
 			gsettings set org.gnome.system.proxy."$proto" host ""
+			echo "[GNOME] "$proto" host cleared" 
+
 			gsettings set org.gnome.system.proxy."$proto" port 0
+			echo "[GNOME] "$proto" port cleared"
+
 		done
 	fi
-	gsettings set org.gnome.system.proxy ignore-hosts "['$_XPROXY_NO_PROXY']"
 
-	echo "gnome setting is set"
+	gsettings set org.gnome.system.proxy ignore-hosts "['$_XPROXY_NO_PROXY']"
+	echo  "[GNOME] ignored-hosts set to "$_XPROXY_NO_PROXY""
+
 
 
 	# set proxy settings for kde compatibles
 	kwriteconfig6 --file kioslaverc --group "Proxy Settings" --key ProxyType 1
+	echo "[KDE] proxy type set to 1"
+
 	# set socks setting if enabled
 	if [ "$SOCKS_ENABLE" = "true" ]; then
 		kwriteconfig6 --file kioslaverc --group "Proxy Settings" \
 			      --key socksProxy "$SOCKS_VERSION://"$SOCKS_HOST":"$SOCKS_PORT""
+		echo "[KDE] socks proxy set to "$SOCKS_VERSION://"$SOCKS_HOST":"$SOCKS_PORT"""
 	else 
 		kwriteconfig6 --file kioslaverc --group "Proxy Settings" --key socksProxy ""
-
+		echo "[KDE] socks proxy cleared"
 	fi
+
 	if [ "$HTTP_ENABLE" = "true" ]; then
+
 		for proto in "${protos[@]}"; do
+
 			kwriteconfig6 --file kioslaverc --group "Proxy Settings" \
 				      --key "$proto"Proxy "http://"$HTTP_HOST":"$HTTP_PORT""
+			echo "[KDE] "$proto" proxy set to "http://"$HTTP_HOST":"$HTTP_PORT"""
+
 		done
 	else
 		# clean the other settings to prevent any intervention
 		for proto in "${protos[@]}"; do
+
 			kwriteconfig6 --file kioslaverc --group "Proxy Settings" --key "$proto"Proxy ""
+			echo "[KDE] $proto proxy cleared"
+
 		done
 	fi
 
 	# Set ignored hosts
         kwriteconfig6 --file kioslaverc --group "Proxy Settings" --key NoProxyFor "$_XPROXY_NO_PROXY"
+	echo "[KDE] NoProxyFor set to "$_XPROXY_NO_PROXY""
 
 	# apply changes by restarting kde's network settings
 	dbus-send --type=signal /KIO/Scheduler org.kde.KIO.Scheduler.reparseSlaveConfiguration string:""
 
-	echo "kde setting is set"
+	echo "[KDE] setting is set"
 
 }
+
 
 function _xproxy_unset() {
 
@@ -142,19 +173,22 @@ function _xproxy_unset() {
 	done
 	unset no_proxy
 	unset NO_PROXY
-
+	echo "[ENV] variables unset"
 
 	# unset proxy settings for future shell instances
 	# WARNING: other current shell instances will continue to use the previous proxy settings
 	if [ -f "$_XPROXY_CACHE" ]; then
 		rm -f "$_XPROXY_CACHE"
 	fi
+	echo "[CACHE] "$_XPROXY_CACHE" deleted"
 
 	# unset proxy setting for gnome compatibles
 	gsettings set org.gnome.system.proxy mode 'none'
+	echo "[GNOME] proxy mode set to 'none'"
 
 	# set proxy settings for kde compatibles
 	kwriteconfig6 --file kioslaverc --group "Proxy Settings" --key ProxyType 0
+	echo "[KDE] proxy type set to 0"
 
 	# apply changes by restarting kde's network settings
 	dbus-send --type=signal /KIO/Scheduler org.kde.KIO.Scheduler.reparseSlaveConfiguration string:""
@@ -172,13 +206,15 @@ function _xproxy_status() {
 	for proto in ${_XPROXY_PROTOS[@]}; do
 		local proto_proxy="${proto}_proxy"
 		local PROTO_PROXY="${proto^^}_PROXY"
-
+		
+		echo -n "[ENV] "
 		if [ -n "${!proto_proxy}" ]; then 
 			echo "${proto_proxy} = ${!proto_proxy}"
 		else 
 			echo "${RED}${proto_proxy} is NOT set${RESET}"
 		fi
 
+		echo -n "[ENV] "
 		if [ -n "${!PROTO_PROXY}" ]; then
 			echo "${PROTO_PROXY} = ${!PROTO_PROXY}"
 		else 
@@ -187,25 +223,28 @@ function _xproxy_status() {
 	done
 
 	# check existance of cache file for future shells 
+	echo -n "[CACHE] "
 	if [ -f "$_XPROXY_CACHE" ]; then
-		echo "cache file exists"
+		echo "$_XPROXY_CACHE exists"
 	else 
-		echo "${RED}cache file does NOT exist${RESET}"
+		echo "${RED}$_XPROXY_CACHE does NOT exist${RESET}"
 	fi
 
 	# check gnome proxy settings
+	echo -n "[GNOME] "
 	if [ $(gsettings get org.gnome.system.proxy mode) = "'manual'" ]; then
-		echo "gnome setting is set"
+		echo "setting is set"
 	else 
-		echo "${RED}gnome setting is NOT set${RESET}"
+		echo "${RED}setting is NOT set${RESET}"
 	fi
 
 
 	# check kde proxy settings
+	echo -n "[KDE] "
 	if [ $(kreadconfig6 --file kioslaverc --group "Proxy Settings" --key ProxyType) = "1" ]; then
-		echo "KDE setting is set"
+		echo "setting is set"
 	else 
-		echo "${RED}KDE setting is NOT set${RESET}"
+		echo "${RED}setting is NOT set${RESET}"
 	fi
 
 }

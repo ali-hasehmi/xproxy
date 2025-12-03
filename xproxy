@@ -3,15 +3,16 @@
 
 _XPROXY_CACHE="$HOME/.xproxy_cache"
 
-_XPROXY_PROTOS=("http" "https" "ftp" "rsync" "all")
+_XPROXY_ENV="http_proxy https_proxy ftp_proxy rsync_proxy all_proxy \
+	     HTTP_PROXY HTTPS_PROXY FTP_PROXY RSYNC_PROXY ALL_PROXY"
 
 _XPROXY_NO_PROXY="localhost,127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,*.local"
 
 if [ -f "$_XPROXY_CACHE" ]; then
-	source "$_XPROXY_CACHE"
+	. "$_XPROXY_CACHE"
 fi
 
-function _xproxy_set() {
+_xproxy_set() {
 
 	local proxy_profile="$1"
 
@@ -28,7 +29,7 @@ function _xproxy_set() {
 		echo "$proxy_profile not found!" >& 2
 		return 1;
 	fi
-	source "$proxy_profile"
+	. "$proxy_profile"
 
 	echo "profile loaded from $proxy_profile"
 	
@@ -47,9 +48,8 @@ function _xproxy_set() {
 	fi
 
 	# set proxy settings via environmental variables for current shell instance
-	for proto in "${_XPROXY_PROTOS[@]}"; do
-		export "${proto}_proxy"="$proxy_url"
-		export "${proto^^}_PROXY"="$proxy_url"
+	for env in $_XPROXY_ENV; do
+		export "$env"="$proxy_url"
 	done
 	export no_proxy="${_XPROXY_NO_PROXY}"
 	export NO_PROXY="${_XPROXY_NO_PROxy}"
@@ -60,9 +60,8 @@ function _xproxy_set() {
 	# set proxy settings for future shell instances
 	# WARNING: other current shell instances won't follow these proxy settings
 	echo "# This file is automatically created by xproxy, DO NOT EDIT!" > "$_XPROXY_CACHE"
-	for proto in "${_XPROXY_PROTOS[@]}"; do
-		echo "export ${proto}_proxy=\"$proxy_url\"" >> "$_XPROXY_CACHE"
-		echo "export ${proto^^}_PROXY=\"$proxy_url\"" >> "$_XPROXY_CACHE"
+	for env in $_XPROXY_ENV; do
+		echo "export "$env"=\"$proxy_url\"" >> "$_XPROXY_CACHE"
 	done
 	echo "export no_proxy=\"$_XPROXY_NO_PROXY\"" >> "$_XPROXY_CACHE"
 	echo "export NO_PROXY=\"$_XPROXY_NO_PROXY\"" >> "$_XPROXY_CACHE"
@@ -71,7 +70,7 @@ function _xproxy_set() {
 
 
 	# set proxy setting for gnome compatibles
-	if command -v gsettings &> /dev/null; then
+	if command -v gsettings > /dev/null 2>&1; then
 		gsettings set org.gnome.system.proxy mode 'manual'
 		echo "[GNOME] proxy mode set to 'manual'"
 		# set socks setting if enabled
@@ -89,11 +88,11 @@ function _xproxy_set() {
 			echo "[GNOME] socks port cleared"
 		fi
 
-		local protos=("http" "https" "ftp")
+		local PROTOS="http https ftp"
 		# set other protocols to http proxy if enabled
 		if [ "$HTTP_ENABLE" = "true" ]; then
 
-			for proto in "${protos[@]}"; do
+			for proto in $PROTOS; do
 
 				gsettings set org.gnome.system.proxy."$proto" host "$HTTP_HOST"
 				echo "[GNOME] "$proto" host set to "$HTTP_HOST""
@@ -104,7 +103,7 @@ function _xproxy_set() {
 			done
 		else
 			# clean the other settings to prevent any intervention
-			for proto in "${protos[@]}"; do
+			for proto in $PROTOS; do
 
 				gsettings set org.gnome.system.proxy."$proto" host ""
 				echo "[GNOME] "$proto" host cleared" 
@@ -122,7 +121,7 @@ function _xproxy_set() {
 
 
 	# set proxy settings for kde compatibles
-	if command -v kwriteconfig6 &> /dev/null; then
+	if command -v kwriteconfig6 > /dev/null 2>&1; then
 
 		kwriteconfig6 --file kioslaverc --group "Proxy Settings" --key ProxyType 1
 		echo "[KDE] proxy type set to 1"
@@ -143,7 +142,7 @@ function _xproxy_set() {
 
 		if [ "$HTTP_ENABLE" = "true" ]; then
 
-			for proto in "${protos[@]}"; do
+			for proto in $PROTOS; do
 
 				kwriteconfig6 --file kioslaverc --group "Proxy Settings" \
 					      --key "$proto"Proxy "http://"$HTTP_HOST":"$HTTP_PORT""
@@ -152,7 +151,7 @@ function _xproxy_set() {
 			done
 		else
 			# clean the other settings to prevent any intervention
-			for proto in "${protos[@]}"; do
+			for proto in $PROTOS; do
 
 				kwriteconfig6 --file kioslaverc --group "Proxy Settings" --key "$proto"Proxy ""
 				echo "[KDE] $proto proxy cleared"
@@ -172,12 +171,11 @@ function _xproxy_set() {
 }
 
 
-function _xproxy_unset() {
+_xproxy_unset() {
 
 	# unset proxy settings via environment variables for current shell instance
-	for proto in "${_XPROXY_PROTOS[@]}"; do
-		unset "${proto}_proxy"
-		unset "${proto^^}_PROXY"
+	for env in $_XPROXY_ENV; do
+		unset "$env"
 	done
 	unset no_proxy
 	unset NO_PROXY
@@ -191,13 +189,13 @@ function _xproxy_unset() {
 	fi
 
 	# unset proxy setting for gnome compatibles
-	if command -v gsettings &> /dev/null; then
+	if command -v gsettings > /dev/null 2>&1; then
 		gsettings set org.gnome.system.proxy mode 'none'
 		echo "[GNOME] proxy mode set to 'none'"
 	fi
 
 	# set proxy settings for kde compatibles
-	if command -v kwriteconfig6 &> /dev/null; then
+	if command -v kwriteconfig6 > /dev/null 2>&1; then
 		kwriteconfig6 --file kioslaverc --group "Proxy Settings" --key ProxyType 0
 		echo "[KDE] proxy type set to 0"
 		# apply changes by restarting kde's network settings
@@ -208,32 +206,24 @@ function _xproxy_unset() {
 
 }
 
-function _xproxy_status() {
+_xproxy_status() {
 
 	# Initialize color variables if tput is in PATH
-	if command -v tput &> /dev/null; then	
+	if command -v tput > /dev/null 2>&1; then	
 		local RED=$(tput setaf 1)
 		local RESET=$(tput sgr0)
 	fi
 
 	# check proxy environment variable settings
-	for proto in ${_XPROXY_PROTOS[@]}; do
-		local proto_proxy="${proto}_proxy"
-		local PROTO_PROXY="${proto^^}_PROXY"
+	for env in $_XPROXY_ENV; do
 		
 		echo -n "[ENV] "
-		if [ -n "${!proto_proxy}" ]; then 
-			echo "${proto_proxy} = ${!proto_proxy}"
+		if eval "[ -n \"\$$env\" ]"; then 
+			eval "echo "$env = \$$env""
 		else 
-			echo "${RED}${proto_proxy} is NOT set${RESET}"
+			echo "${RED}${env} is NOT set${RESET}"
 		fi
-
-		echo -n "[ENV] "
-		if [ -n "${!PROTO_PROXY}" ]; then
-			echo "${PROTO_PROXY} = ${!PROTO_PROXY}"
-		else 
-			echo "${RED}${PROTO_PROXY} is NOT set${RESET}"
-		fi
+		
 	done
 
 	# check existance of cache file for future shells 
@@ -245,7 +235,7 @@ function _xproxy_status() {
 	fi
 
 	# check gnome proxy settings
-	if command -v gsettings &> /dev/null; then
+	if command -v gsettings > /dev/null 2>&1; then
 		echo -n "[GNOME] "
 		if [ $(gsettings get org.gnome.system.proxy mode) = "'manual'" ]; then
 			echo "setting is set"
@@ -256,7 +246,7 @@ function _xproxy_status() {
 
 
 	# check kde proxy settings
-	if command -v gsettings &> /dev/null; then
+	if command -v kreadconfig6 > /dev/null 2>&1; then
 		echo -n "[KDE] "
 		if [ $(kreadconfig6 --file kioslaverc --group "Proxy Settings" --key ProxyType) = "1" ]; then
 			echo "setting is set"
@@ -267,7 +257,13 @@ function _xproxy_status() {
 
 }
 
-function xproxy() {
+xproxy() {
+	
+	# ZSH ONLY: to make it behave like a normal shell
+	if [ -n "$ZSH_VERSION" ]; then
+		local zsh_mode=$(emulate)
+		emulate ksh
+	fi
 
 	local cmd=${1:-status};
 
@@ -283,7 +279,12 @@ function xproxy() {
 		_xproxy_status
 	;;
 	*)
-		echo "invalid command"
+		echo -e "Usage:\nxproxy set [profile-file] | unset | status "
 	;;
 	esac
+
+	# resture ZSH to whatever it was before this script
+	if [ -n "$zsh_mode" ]; then
+		emulate "$zsh_mode"
+	fi
 }

@@ -15,6 +15,7 @@ fi
 _xproxy_set() {
 
 	local proxy_profile="$1"
+	local local_mode="$2"
 
 	# proxy variables inside the profile file
 	local SOCKS_ENABLE  
@@ -56,6 +57,10 @@ _xproxy_set() {
 
 	echo "[ENV] variables are set to $proxy_url"
 
+	# if in local mode do not apply system-wide settings
+	if [ "$local_mode" = "true" ]; then
+		return 0;
+	fi
 
 	# set proxy settings for future shell instances
 	# WARNING: other current shell instances won't follow these proxy settings
@@ -173,6 +178,8 @@ _xproxy_set() {
 
 _xproxy_unset() {
 
+	local local_mode="$1"
+
 	# unset proxy settings via environment variables for current shell instance
 	for env in $_XPROXY_ENV; do
 		unset "$env"
@@ -180,6 +187,11 @@ _xproxy_unset() {
 	unset no_proxy
 	unset NO_PROXY
 	echo "[ENV] variables unset"
+
+	# if in local_mode then do not apply system-wide settings
+	if [ "$local_mode" = "true" ]; then
+		return 0;
+	fi
 
 	# unset proxy settings for future shell instances
 	# WARNING: other current shell instances will continue to use the previous proxy settings
@@ -208,6 +220,8 @@ _xproxy_unset() {
 
 _xproxy_status() {
 
+	local local_mode=$1;
+
 	# Initialize color variables if tput is in PATH
 	if command -v tput > /dev/null 2>&1; then	
 		local RED=$(tput setaf 1)
@@ -225,6 +239,11 @@ _xproxy_status() {
 		fi
 		
 	done
+
+	# if in local mode then do not check system-wide settings
+	if [ "$local_mode" = "true" ]; then
+		return 0;
+	fi
 
 	# check existance of cache file for future shells 
 	echo -n "[CACHE] "
@@ -265,21 +284,41 @@ xproxy() {
 		emulate ksh
 	fi
 
-	local cmd=${1:-status};
+	local cmd
+	local profile_arg="$HOME/.xproxy_profile"
+	local local_only="false"
+
+	# parsing arguments
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			"-l"|"--local")
+				local_only="true"
+				shift
+				;;
+			"set"|"unset"|"status"|"stat")
+				cmd="$1"
+				shift
+				;;
+			*)
+				profile_arg="$1"
+				shift
+				;;
+		esac
+	done
+
 
 	case "$cmd" in
 	"set")
-		local profile_file=${2:-"$HOME/.xproxy_profile"}
-		_xproxy_set $profile_file
+		_xproxy_set "$profile_arg" "$local_only"
 	;;
 	"unset")
-		_xproxy_unset
+		_xproxy_unset "$local_only"
 	;;
-	"status")
-		_xproxy_status
+	"status"|"stat")
+		_xproxy_status "$local_only"
 	;;
 	*)
-		echo -e "Usage:\nxproxy set [profile-file] | unset | status "
+		echo -e "Usage:\nxproxy\n\tset [profile-file] [--local]\n\tunset [--local]\n\tstatus"
 	;;
 	esac
 

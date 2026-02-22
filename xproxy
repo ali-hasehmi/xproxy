@@ -1,5 +1,3 @@
-#!/usr/bin/env bash
-
 
 _XPROXY_CACHE="$HOME/.xproxy_cache"
 
@@ -232,8 +230,9 @@ _xproxy_status() {
 	for env in $_XPROXY_ENV; do
 		
 		echo -n "[ENV] "
-		if eval "[ -n \"\$$env\" ]"; then 
-			eval "echo "$env = \$$env""
+        local url=$(printenv "$env")
+		if [ -n "$url" ]; then 
+			echo "$env = $url"
 		else 
 			echo "${RED}${env} is NOT set${RESET}"
 		fi
@@ -278,7 +277,7 @@ _xproxy_status() {
 
 xproxy() {
 	
-	# ZSH ONLY: to make it behave like a normal shell
+	# ZSH ONLY: make it behave like a normal shell
 	if [ -n "$ZSH_VERSION" ]; then
 		local zsh_mode=$(emulate)
 		emulate ksh
@@ -322,7 +321,7 @@ xproxy() {
 	;;
 	esac
 
-	# resture ZSH to whatever it was before this script
+	# restore ZSH to whatever it was before this script
 	if [ -n "$zsh_mode" ]; then
 		emulate "$zsh_mode"
 	fi

@@ -1,4 +1,3 @@
-
 _XPROXY_CACHE="$HOME/.xproxy_cache"
 
 _XPROXY_OTHER_ENV="ftp_proxy rsync_proxy all_proxy FTP_PROXY RSYNC_PROXY ALL_PROXY"
@@ -346,3 +345,5 @@ xproxy() {
 		emulate "$zsh_mode"
 	fi
 }
+
+# vim: set ft=sh:

@@ -1,8 +1,8 @@
 
 _XPROXY_CACHE="$HOME/.xproxy_cache"
 
-_XPROXY_ENV="http_proxy https_proxy ftp_proxy rsync_proxy all_proxy \
-	     HTTP_PROXY HTTPS_PROXY FTP_PROXY RSYNC_PROXY ALL_PROXY"
+_XPROXY_OTHER_ENV="ftp_proxy rsync_proxy all_proxy FTP_PROXY RSYNC_PROXY ALL_PROXY"
+_XPROXY_HTTP_ENV="http_proxy https_proxy HTTP_PROXY HTTPS_PROXY"
 
 _XPROXY_NO_PROXY="localhost,127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,*.local"
 
@@ -30,30 +30,44 @@ _xproxy_set() {
 	fi
 	. "$proxy_profile"
 
-	echo "profile loaded from $proxy_profile"
+	echo "[INFO] profile loaded from $proxy_profile"
 	
-	local proxy_url="" 
+	local socks_url="" 
+	local http_url="" 
 	if [ "$SOCKS_ENABLE" = "true" ]; then
-		proxy_url="$SOCKS_VERSION://$SOCKS_HOST:$SOCKS_PORT"
+		socks_url="$SOCKS_VERSION://$SOCKS_HOST:$SOCKS_PORT"
 	fi 	
 
 	if [ "$HTTP_ENABLE" = "true" ]; then
-		proxy_url="http://$HTTP_HOST:$HTTP_PORT"
+		http_url="http://$HTTP_HOST:$HTTP_PORT"
 	fi	
 
-	if [ -z "$proxy_url" ]; then
+    if [ -z "$socks_url" ]; then
+        socks_url=$http_url
+    fi
+
+    if [ -z "$http_url" ]; then
+        http_url=$socks_url
+    fi
+
+	if [ -z "$socks_url" ] && [ -z "$http_url" ] ; then
 		echo "socks and http are both disabled, nothing to do..."
 		return 0
 	fi
 
 	# set proxy settings via environmental variables for current shell instance
-	for env in $_XPROXY_ENV; do
-		export "$env"="$proxy_url"
+	for env in $_XPROXY_HTTP_ENV; do
+		export "$env"="$http_url"
 	done
+
+    for env in $_XPROXY_OTHER_ENV; do
+        export "$env"="$socks_url"
+    done
 	export no_proxy="${_XPROXY_NO_PROXY}"
 	export NO_PROXY="${_XPROXY_NO_PROxy}"
 
-	echo "[ENV] variables are set to $proxy_url"
+	echo "[ENV] HTTP variables are set to $http_url"
+	echo "[ENV] Other variables are set to $socks_url"
 
 	# if in local mode do not apply system-wide settings
 	if [ "$local_mode" = "true" ]; then
@@ -63,9 +77,12 @@ _xproxy_set() {
 	# set proxy settings for future shell instances
 	# WARNING: other current shell instances won't follow these proxy settings
 	echo "# This file is automatically created by xproxy, DO NOT EDIT!" > "$_XPROXY_CACHE"
-	for env in $_XPROXY_ENV; do
-		echo "export "$env"=\"$proxy_url\"" >> "$_XPROXY_CACHE"
+	for env in $_XPROXY_HTTP_ENV; do
+		echo "export "$env"=\"$http_url\"" >> "$_XPROXY_CACHE"
 	done
+    for env in $_XPROXY_OTHER_ENV; do
+		echo "export "$env"=\"$socks_url\"" >> "$_XPROXY_CACHE"
+    done
 	echo "export no_proxy=\"$_XPROXY_NO_PROXY\"" >> "$_XPROXY_CACHE"
 	echo "export NO_PROXY=\"$_XPROXY_NO_PROXY\"" >> "$_XPROXY_CACHE"
 
@@ -179,9 +196,12 @@ _xproxy_unset() {
 	local local_mode="$1"
 
 	# unset proxy settings via environment variables for current shell instance
-	for env in $_XPROXY_ENV; do
+	for env in $_XPROXY_HTTP_ENV; do
 		unset "$env"
 	done
+    for env in $_XPROXY_OTHER_ENV; do
+        unset "$env"
+    done
 	unset no_proxy
 	unset NO_PROXY
 	echo "[ENV] variables unset"
@@ -227,7 +247,7 @@ _xproxy_status() {
 	fi
 
 	# check proxy environment variable settings
-	for env in $_XPROXY_ENV; do
+	for env in $_XPROXY_HTTP_ENV $_XPROXY_OTHER_ENV; do
 		
 		echo -n "[ENV] "
         local url=$(printenv "$env")

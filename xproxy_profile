@@ -1,4 +1,8 @@
-# When both protocols are enabled, http has higher priority
+#
+# When both protocols are enabled, 
+# http will be used for http proxy environments (e.g. http_proxy)
+# and socks will be used for anything else (e.g. ftp_proxy)
+#
 # SOCKS Proxy Settings
 ## [REQUIRED]
 SOCKS_ENABLE=true     
@@ -22,3 +26,5 @@ HTTP_HOST="192.168.1.50"
 
 ## [OPTIONAL] Default is 10808
 HTTP_PORT="3128" 
+
+# vim: ft=sh:

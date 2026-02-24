@@ -1,11 +1,11 @@
 #!/usr/bin/env sh
 #
-# install script for xproxy
+# install script for proxyctl
 #
 
 set -u
 
-repo_url="https://github.com/ali-hasehmi/xproxy"
+repo_url="https://github.com/ali-hasehmi/proxyctl"
 repo_name=$(basename $repo_url)
 temp_dir="${TMPDIR:-/tmp}"
 
@@ -33,12 +33,12 @@ git clone --quiet --depth 1 "$repo_url"
 
 cd $repo_name
 
-echo "[INFO] installing xproxy at "$HOME/.xproxy""
-mv -f xproxy "$HOME/.xproxy"
+echo "[INFO] installing proxyctl at "$HOME/.proxyctl""
+mv -f proxyctl "$HOME/.proxyctl"
 
-[ -f "$HOME/.xproxy_profile" ] || { 
-    echo "[INFO installing defulat profile at "$HOME/.xproxy_profile""
-    mv -f xproxy_profile "$HOME/.xproxy_profile"
+[ -f "$HOME/.proxyctl_profile" ] || { 
+    echo "[INFO] installing defulat profile at "$HOME/.proxyctl_profile""
+    mv -f proxyctl_profile "$HOME/.proxyctl_profile"
 }
 
 shell=$(basename "$SHELL")
@@ -50,13 +50,14 @@ case $shell in
 esac
 
 
-if  ! grep -qF '. "$HOME/.xproxy"' $shellrc; then
+if  ! grep -qF '. "$HOME/.proxyctl"' $shellrc; then
     echo "[INFO] detected shell is $shell"
     echo "[INFO] Updating $shellrc"
     >> $shellrc cat << EOF
-# source xproxy
-if [ -f "\$HOME/.xproxy" ]; then
-. "\$HOME/.xproxy"
+
+# source proxyctl
+if [ -f "\$HOME/.proxyctl" ]; then
+    . "\$HOME/.proxyctl"
 fi
 EOF
 

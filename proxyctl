@@ -1,15 +1,15 @@
-_XPROXY_CACHE="$HOME/.xproxy_cache"
+_PROXYCTL_CACHE="$HOME/.proxyctl_cache"
 
-_XPROXY_OTHER_ENV="ftp_proxy rsync_proxy all_proxy FTP_PROXY RSYNC_PROXY ALL_PROXY"
-_XPROXY_HTTP_ENV="http_proxy https_proxy HTTP_PROXY HTTPS_PROXY"
+_PROXYCTL_OTHER_ENV="ftp_proxy rsync_proxy all_proxy FTP_PROXY RSYNC_PROXY ALL_PROXY"
+_PROXYCTL_HTTP_ENV="http_proxy https_proxy HTTP_PROXY HTTPS_PROXY"
 
-_XPROXY_NO_PROXY="localhost,127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,*.local"
+_PROXYCTL_NO_PROXY="localhost,127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,*.local"
 
-if [ -f "$_XPROXY_CACHE" ]; then
-	. "$_XPROXY_CACHE"
+if [ -f "$_PROXYCTL_CACHE" ]; then
+	. "$_PROXYCTL_CACHE"
 fi
 
-_xproxy_set() {
+_proxyctl_set() {
 
 	local proxy_profile="$1"
 	local local_mode="$2"
@@ -55,15 +55,15 @@ _xproxy_set() {
 	fi
 
 	# set proxy settings via environmental variables for current shell instance
-	for env in $_XPROXY_HTTP_ENV; do
+	for env in $_PROXYCTL_HTTP_ENV; do
 		export "$env"="$http_url"
 	done
 
-    for env in $_XPROXY_OTHER_ENV; do
+    for env in $_PROXYCTL_OTHER_ENV; do
         export "$env"="$socks_url"
     done
-	export no_proxy="${_XPROXY_NO_PROXY}"
-	export NO_PROXY="${_XPROXY_NO_PROxy}"
+	export no_proxy="${_PROXYCTL_NO_PROXY}"
+	export NO_PROXY="${_PROXYCTL_NO_PROxy}"
 
 	echo "[ENV] HTTP variables are set to $http_url"
 	echo "[ENV] Other variables are set to $socks_url"
@@ -75,17 +75,17 @@ _xproxy_set() {
 
 	# set proxy settings for future shell instances
 	# WARNING: other current shell instances won't follow these proxy settings
-	echo "# This file is automatically created by xproxy, DO NOT EDIT!" > "$_XPROXY_CACHE"
-	for env in $_XPROXY_HTTP_ENV; do
-		echo "export "$env"=\"$http_url\"" >> "$_XPROXY_CACHE"
+	echo "# This file is automatically created by proxyctl, DO NOT EDIT!" > "$_PROXYCTL_CACHE"
+	for env in $_PROXYCTL_HTTP_ENV; do
+		echo "export "$env"=\"$http_url\"" >> "$_PROXYCTL_CACHE"
 	done
-    for env in $_XPROXY_OTHER_ENV; do
-		echo "export "$env"=\"$socks_url\"" >> "$_XPROXY_CACHE"
+    for env in $_PROXYCTL_OTHER_ENV; do
+		echo "export "$env"=\"$socks_url\"" >> "$_PROXYCTL_CACHE"
     done
-	echo "export no_proxy=\"$_XPROXY_NO_PROXY\"" >> "$_XPROXY_CACHE"
-	echo "export NO_PROXY=\"$_XPROXY_NO_PROXY\"" >> "$_XPROXY_CACHE"
+	echo "export no_proxy=\"$_PROXYCTL_NO_PROXY\"" >> "$_PROXYCTL_CACHE"
+	echo "export NO_PROXY=\"$_PROXYCTL_NO_PROXY\"" >> "$_PROXYCTL_CACHE"
 
-	echo "[CACHE] "$_XPROXY_CACHE" created for future shells"
+	echo "[CACHE] "$_PROXYCTL_CACHE" created for future shells"
 
 
 	# set proxy setting for gnome compatibles
@@ -133,8 +133,8 @@ _xproxy_set() {
 			done
 		fi
 
-		gsettings set org.gnome.system.proxy ignore-hosts "['$_XPROXY_NO_PROXY']"
-		echo  "[GNOME] ignored-hosts set to "$_XPROXY_NO_PROXY""
+		gsettings set org.gnome.system.proxy ignore-hosts "['$_PROXYCTL_NO_PROXY']"
+		echo  "[GNOME] ignored-hosts set to "$_PROXYCTL_NO_PROXY""
 	fi
 
 
@@ -179,8 +179,8 @@ _xproxy_set() {
 		fi
 
 		# Set ignored hosts
-		kwriteconfig6 --file kioslaverc --group "Proxy Settings" --key NoProxyFor "$_XPROXY_NO_PROXY"
-		echo "[KDE] NoProxyFor set to "$_XPROXY_NO_PROXY""
+		kwriteconfig6 --file kioslaverc --group "Proxy Settings" --key NoProxyFor "$_PROXYCTL_NO_PROXY"
+		echo "[KDE] NoProxyFor set to "$_PROXYCTL_NO_PROXY""
 
 		# apply changes by restarting kde's network settings
 		dbus-send --type=signal /KIO/Scheduler org.kde.KIO.Scheduler.reparseSlaveConfiguration string:""
@@ -190,15 +190,15 @@ _xproxy_set() {
 }
 
 
-_xproxy_unset() {
+_proxyctl_unset() {
 
 	local local_mode="$1"
 
 	# unset proxy settings via environment variables for current shell instance
-	for env in $_XPROXY_HTTP_ENV; do
+	for env in $_PROXYCTL_HTTP_ENV; do
 		unset "$env"
 	done
-    for env in $_XPROXY_OTHER_ENV; do
+    for env in $_PROXYCTL_OTHER_ENV; do
         unset "$env"
     done
 	unset no_proxy
@@ -212,9 +212,9 @@ _xproxy_unset() {
 
 	# unset proxy settings for future shell instances
 	# WARNING: other current shell instances will continue to use the previous proxy settings
-	if [ -f "$_XPROXY_CACHE" ]; then
-		rm -f "$_XPROXY_CACHE"
-		echo "[CACHE] "$_XPROXY_CACHE" deleted"
+	if [ -f "$_PROXYCTL_CACHE" ]; then
+		rm -f "$_PROXYCTL_CACHE"
+		echo "[CACHE] "$_PROXYCTL_CACHE" deleted"
 	fi
 
 	# unset proxy setting for gnome compatibles
@@ -235,7 +235,7 @@ _xproxy_unset() {
 
 }
 
-_xproxy_status() {
+_proxyctl_status() {
 
 	local local_mode=$1;
 
@@ -246,7 +246,7 @@ _xproxy_status() {
 	fi
 
 	# check proxy environment variable settings
-	for env in $_XPROXY_HTTP_ENV $_XPROXY_OTHER_ENV; do
+	for env in $_PROXYCTL_HTTP_ENV $_PROXYCTL_OTHER_ENV; do
 		
 		echo -n "[ENV] "
         local url=$(printenv "$env")
@@ -265,10 +265,10 @@ _xproxy_status() {
 
 	# check existance of cache file for future shells 
 	echo -n "[CACHE] "
-	if [ -f "$_XPROXY_CACHE" ]; then
-		echo "$_XPROXY_CACHE exists"
+	if [ -f "$_PROXYCTL_CACHE" ]; then
+		echo "$_PROXYCTL_CACHE exists"
 	else 
-		echo "${RED}$_XPROXY_CACHE does NOT exist${RESET}"
+		echo "${RED}$_PROXYCTL_CACHE does NOT exist${RESET}"
 	fi
 
 	# check gnome proxy settings
@@ -294,7 +294,7 @@ _xproxy_status() {
 
 }
 
-xproxy() {
+proxyctl() {
 	
 	# ZSH ONLY: make it behave like a normal shell
 	if [ -n "$ZSH_VERSION" ]; then
@@ -303,7 +303,7 @@ xproxy() {
 	fi
 
 	local cmd
-	local profile_arg="$HOME/.xproxy_profile"
+	local profile_arg="$HOME/.proxyctl_profile"
 	local local_only="false"
 
 	# parsing arguments
@@ -327,16 +327,16 @@ xproxy() {
 
 	case "$cmd" in
 	"set")
-		_xproxy_set "$profile_arg" "$local_only"
+		_proxyctl_set "$profile_arg" "$local_only"
 	;;
 	"unset")
-		_xproxy_unset "$local_only"
+		_proxyctl_unset "$local_only"
 	;;
 	"status"|"stat")
-		_xproxy_status "$local_only"
+		_proxyctl_status "$local_only"
 	;;
 	*)
-		echo -e "Usage:\nxproxy\n\tset [profile-file] [--local]\n\tunset [--local]\n\tstatus"
+		echo -e "Usage:\nproxyctl\n\tset [profile-file] [--local]\n\tunset [--local]\n\tstatus"
 	;;
 	esac
 

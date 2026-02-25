@@ -3,7 +3,7 @@
 # install script for proxyctl
 #
 
-set -u
+set -e
 
 repo_url="https://github.com/ali-hasehmi/proxyctl"
 repo_name=$(basename $repo_url)
@@ -28,18 +28,24 @@ done
 
 cd "$temp_dir"
 
-echo "[INFO] cloning repository in $temp_dir"
+echo "[GIT] cloning repository in $temp_dir/$repo_name"
 git clone --quiet --depth 1 "$repo_url"
 
 cd $repo_name
 
-echo "[INFO] installing proxyctl at "$HOME/.proxyctl""
-mv -f proxyctl "$HOME/.proxyctl"
+if diff -q proxyctl "$HOME/.proxyctl" >/dev/null 2>/dev/null; then
+    echo "[PROXYCTL] "$HOME/.proxyctl" is already installed"
+else
+    echo "[PROXYCTL] installing proxyctl at "$HOME/.proxyctl""
+    mv -f proxyctl "$HOME/.proxyctl"
+fi
 
-[ -f "$HOME/.proxyctl_profile" ] || { 
-    echo "[INFO] installing defulat profile at "$HOME/.proxyctl_profile""
+if [ -f "$HOME/.proxyctl_profile" ]; then
+    echo "[PROFILE] "$HOME/.proxyctl_profile" is already installed"
+else
+    echo "[PROFILE] installing defulat profile at "$HOME/.proxyctl_profile""
     mv -f proxyctl_profile "$HOME/.proxyctl_profile"
-}
+fi
 
 shell=$(basename "$SHELL")
 shellrc="$HOME/.profile"
@@ -50,9 +56,12 @@ case $shell in
 esac
 
 
-if  ! grep -qF '. "$HOME/.proxyctl"' $shellrc; then
-    echo "[INFO] detected shell is $shell"
-    echo "[INFO] Updating $shellrc"
+echo "[SHELL] detected shellrc is $shellrc"
+
+if  grep -qF '. "$HOME/.proxyctl"' $shellrc; then
+    echo "[SHELL] $shellrc is already updated"
+else 
+    echo "[SHELL] Updating $shellrc"
     >> $shellrc cat << EOF
 
 # source proxyctl

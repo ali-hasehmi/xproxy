@@ -1,8 +1,5 @@
 #!/usr/bin/env sh
 
-# Ensure script stops on critical errors
-set -e
-
 # --- UI & Colors ---
 # Fallback to plain text if tput is missing or stdout is not a terminal
 if command -v tput >/dev/null 2>&1 && [ -t 1 ]; then

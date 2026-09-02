@@ -92,8 +92,8 @@ modules_exec() {
 
    local mod_file="$MODULE_PATH/${mod_name}.sh"
    if [ ! -x "$mod_file" ]; then
-      warn "Module '$mod_name' not found or not executable. Skipping."
-      return
+      warn "Module '${C_BLUE}$mod_name${C_RESET} not found or not executable. Skipping."
+      return 1
    fi
             
    # Execute the module with the specified arguments 
@@ -102,13 +102,16 @@ modules_exec() {
 
 # --- Module Resolution ---
 modules_get_target() {
-    if modules_contain_all "$CLI_MODULES" || modules_contain_all "$MODULES"; then
-        # Dynamically list all .sh files in the modules directory
-        modules_get_all
-    elif [ -n "$CLI_MODULES" ]; then
+    if [ -n "$CLI_MODULES" ]; then
+        if modules_contain_all "$CLI_MODULES"; then
+            CLI_MODULES=$(modules_get_all)
+        fi
         echo "$CLI_MODULES"
     else
-        echo "$MODULES" # Fallback to the array defined in the profile
+        if modules_contain_all "$MODULES"; then
+            MODULES=$(modules_get_all)
+        fi
+        echo "$MODULES"
     fi
 }
 
@@ -154,7 +157,7 @@ case "$VERB" in
         info "Available proxyctl modules:"
         for mod in $MODS; do
             desc=$(modules_exec "$mod" description)
-            printf "  ${C_BLUE}%-10s${C_RESET} - %s\n" "$mod" "$desc"
+            [ "$?" -eq 0 ] && printf "  ${C_BLUE}%-10s${C_RESET} - %s\n" "$mod" "$desc"
         done
         ;;
     enable|disable|status)

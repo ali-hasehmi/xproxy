@@ -1,11 +1,7 @@
 #!/usr/bin/env sh
 
-# Change $PWD to module's location
-cd "$(dirname "$0")" 
-
-
 # Include common helper functions & variables
-. "../common.sh"
+. "$PROXYCTL_HOME/common.sh"
 
 INFO_TXT=ENV
 WARN_TXT=ENV

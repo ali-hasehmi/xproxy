@@ -1,19 +1,24 @@
 #!/usr/bin/env sh
 
+PROXYCTL_HOME="${PROXYCTL_HOME:-$(cd "$(dirname "$0")" && pwd)}"
+
+# Export '$PROXYCTL_HOME', so all subsequent scripts can access it
+export PROXYCTL_HOME
+
 # Include common helper functions & variables
-. "./common.sh"
+. "$PROXYCTL_HOME/common.sh"
 
 # Default profile location adheres to XDG config standard
 PROFILE_PATH="${XDG_CONFIG_HOME:-$HOME/.config}/proxyctl/profile"
 
 # Default Module Path location 
-MODULE_PATH="$(realpath ./modules)"
+MODULE_PATH="$PROXYCTL_HOME/modules"
 
 # ---  Command Line Parsing ---
 while getopts ":hp:m:" opt; do
     case "$opt" in
         p )
-            PROFILE_PATH="$(realpath "$OPTARG")"
+            PROFILE_PATH="$OPTARG"
             ;;
         m)  
             MODULE_PATH="$OPTARG"
@@ -59,8 +64,6 @@ load_profile() {
     export PROXYCTL_HOST="${HOST:-127.0.0.1}"
     export PROXYCTL_PORT="${PORT:-9050}"
     export PROXYCTL_NO_PROXY="${NO_PROXY:-localhost,127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,*.local}"
-    # Fallback to 'all' if MODULES is empty
-    MODULES="${MODULES:-all}"
 }
 
 
@@ -102,17 +105,20 @@ modules_exec() {
 
 # --- Module Resolution ---
 modules_get_target() {
-    if [ -n "$CLI_MODULES" ]; then
-        if modules_contain_all "$CLI_MODULES"; then
-            CLI_MODULES=$(modules_get_all)
-        fi
-        echo "$CLI_MODULES"
-    else
-        if modules_contain_all "$MODULES"; then
-            MODULES=$(modules_get_all)
-        fi
-        echo "$MODULES"
-    fi
+
+    # Default to '$CLI_MODULES'
+    local target="$CLI_MODULES"
+
+    # Fallback to '$MODULES' if no module is passed via cmdline
+    [ -z "$target" ] && target="$MODULES"
+
+    # Finally fallback to 'all'
+    [ -z "$target" ] && target="all"
+
+    # get all modules if target has 'all' in it
+    modules_contain_all "$target" && target=$(modules_get_all)
+
+    echo "$target"
 }
 
 # --- Command Aliasing & Routing ---
@@ -127,7 +133,7 @@ case "$COMMAND" in
     status|stat|st)
         VERB="status"
         ;;
-    edit|e)
+    edit|ed)
         VERB="edit"
         ;;
     view|v)
@@ -141,15 +147,13 @@ case "$COMMAND" in
         ;;
 esac
 
-
-load_profile
-
 # --- Execution ---
 case "$VERB" in
     edit)
         "${VISUAL:-${EDITOR:-vi}}" "$PROFILE_PATH"
         ;;
     view)
+        load_profile
         "${PAGER:-less}" "$PROFILE_PATH"
         ;;
     list)
@@ -161,6 +165,7 @@ case "$VERB" in
         done
         ;;
     enable|disable|status)
+        load_profile
         TARGETS=$(modules_get_target)
         
         if [ -z "$TARGETS" ]; then

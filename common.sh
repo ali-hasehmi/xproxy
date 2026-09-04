@@ -8,6 +8,7 @@ if command -v tput >/dev/null 2>&1 && [ -t 1 ]; then
     C_YELLOW=$(tput setaf 3)
     C_BLUE=$(tput setaf 4)
     C_RESET=$(tput sgr0)
+    C_BOLD=$(tput bold)
 else
     C_RED=""
     C_GREEN=""

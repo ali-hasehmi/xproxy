@@ -15,6 +15,42 @@ PROFILE_PATH="${XDG_CONFIG_HOME:-$HOME/.config}/proxyctl/profile"
 # Default Module Path location 
 MODULE_PATH="$PROXYCTL_HOME/modules"
 
+show_help() {
+    cat << EOF
+${C_BOLD}proxyctl${C_RESET} - Modular and XDG-compliant proxy management tool
+
+${C_BOLD}USAGE:${C_RESET}
+    proxyctl [OPTIONS] <COMMAND> [MODULES...]
+
+${C_BOLD}COMMANDS:${C_RESET}
+    ${C_BLUE}enable, set, s${C_RESET}       Apply proxy settings to target modules
+    ${C_BLUE}disable, unset, u${C_RESET}    Remove proxy settings from target modules
+    ${C_BLUE}status, stat, st${C_RESET}     Display proxy state for target modules
+    ${C_BLUE}list, ls${C_RESET}             List available modules and their descriptions
+    ${C_BLUE}edit, ed${C_RESET}             Open configuration profile in \$EDITOR / \$VISUAL
+    ${C_BLUE}view, v${C_RESET}              Inspect configuration profile using \$PAGER
+    ${C_BLUE}help${C_RESET}                 Display this help message and exit
+
+${C_BOLD}OPTIONS:${C_RESET}
+    ${C_BLUE}-p <path>${C_RESET}           Path to configuration profile
+                            (default: \${XDG_CONFIG_HOME:-\$HOME/.config}/proxyctl/profile)
+    ${C_BLUE}-m <path>${C_RESET}           Path to modules directory
+                            (default: \$PROXYCTL_HOME/modules)
+    ${C_BLUE}-h${C_RESET}                  Show this help message and exit
+
+${C_BOLD}MODULES:${C_RESET}
+    Pass one or more module names (e.g., 'env', 'cache') or 'all'.
+    If omitted, targets default to \$MODULES defined in the profile (fallback: 'all').
+
+${C_BOLD}EXAMPLES:${C_RESET}
+    proxyctl set                    Apply proxy using active profile defaults
+    proxyctl set env cache          Apply proxy to current shell and persist for future sessions
+    proxyctl unset all              Disable proxy across every installed module
+    proxyctl status                 Inspect current status of default modules
+    proxyctl -p ~/work.profile set  Load an alternate profile and enable it
+EOF
+}
+
 # ---  Command Line Parsing ---
 while getopts ":hp:m:" opt; do
     case "$opt" in
@@ -25,9 +61,7 @@ while getopts ":hp:m:" opt; do
             MODULE_PATH="$OPTARG"
             ;;
         h)
-            # TODO: call help function
-            echo "Usage: proxyctl [-p profile] <command> [modules...]"
-            echo "Commands: enable(set), disable(unset), status(stat), ls(list), edit(e), view(v)"
+            show_help
             exit 0
             ;;
         \? )
@@ -142,6 +176,10 @@ case "$COMMAND" in
         ;;
     list|ls)
         VERB="list"
+        ;;
+    help)
+        show_help
+        exit 0
         ;;
     *)
         die "Unknown command: $COMMAND"

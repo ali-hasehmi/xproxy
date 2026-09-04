@@ -2,8 +2,9 @@
 
 PROXYCTL_HOME="${PROXYCTL_HOME:-$(cd "$(dirname "$0")" && pwd)}"
 
-# Export '$PROXYCTL_HOME', so all subsequent scripts can access it
+# Export so all subsequent scripts can access it
 export PROXYCTL_HOME
+export PROXYCTL_CACHE
 
 # Include common helper functions & variables
 . "$PROXYCTL_HOME/common.sh"
@@ -95,7 +96,7 @@ modules_exec() {
 
    local mod_file="$MODULE_PATH/${mod_name}.sh"
    if [ ! -x "$mod_file" ]; then
-      warn "Module '${C_BLUE}$mod_name${C_RESET} not found or not executable. Skipping."
+      warn "Module '${C_BLUE}$mod_name${C_RESET}' not found or not executable. Skipping."
       return 1
    fi
             

@@ -10,28 +10,44 @@ proxyctl() {
         trap 'exit 143' TERM
 
         # Default to XDG path, but user/developer can override the installation directory
-        local install_dir="${PROXYCTL_HOME:-${XDG_DATA_HOME:-$HOME/.local/share}/proxyctl}"
+        install_dir="${PROXYCTL_HOME:-${XDG_DATA_HOME:-$HOME/.local/share}/proxyctl}"
         
         # Execute the core orchestrator. We pass the tmpfile via environment variable.
         PROXYCTL_OUT="$tmpfile" PROXYCTL_HOME="$install_dir" "$install_dir/main.sh" "$@"
-    )
-    local ret=$?
 
-    # If the module wrote export/unset commands, source them into the interactive shell
-    if [ "$ret" -eq 0 ] && [ -s "$tmpfile" ]; then
-        echo "Changes to be applied:"
-        while IFS= read -r line; do
-            echo "  + $line"
-        done < "$tmpfile"
-        while true; do
-            read -r -p "Apply above changes? [Y/n] " yn
-            yn=${yn:-Y}
-            case $yn in
-                [Yy]* ) . "$tmpfile"; echo "Changes applied." ; break;;
-                [Nn]* ) echo "Aborted by user."; break;; 
-            esac
-        done
+        ret=$?
+
+        [ "$ret" -ne 0 ] && exit "$ret"
+
+        # If the module wrote export/unset commands, source them into the interactive shell
+        if [ -s "$tmpfile" ]; then
+            echo "Changes to be applied:"
+            while IFS= read -r line; do
+                echo "  + $line"
+            done < "$tmpfile"
+            while true; do
+                read -r -p "Apply above changes? [Y/n] " yn
+                yn=${yn:-Y}
+                case $yn in
+                    [Yy]* ) ret=100; break;; 
+                    [Nn]* ) ret=101; break;; 
+                esac
+            done
+        fi
+        
+        exit $ret
+    )
+
+    local ret=$?
+    if [ "$ret" -eq 100 ]; then
+        ret=0
+        . "$tmpfile"
+        echo "Changes applied."
+    elif [ "$ret" -eq 101 ]; then
+        ret=0
+        echo "Changes aborted by user."
     fi
+
 
     # cleanup.
     rm -f "$tmpfile"
